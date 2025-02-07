@@ -1,0 +1,2 @@
+# P3: Forecasting
+The focus of this project is to design, implement, test, compare, and document a selection of forecasting algorithms, e.g. ARMA, ARIMA, SARIMA, SARIMAX, LSTM and Prophet. The algorithms must be optimized with regard to forecasting accuracy, simplicity and explain-ability/interpret-ability, i.e. results must be shown such that end-users readily can see the basis for the approximations. To quantify the quality of the algorithms, comparative evaluations should be carried out via objective metrics and the algorithms should be assessed against state of the art.
