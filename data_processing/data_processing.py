@@ -93,23 +93,14 @@ val_len = int(len(df) * 0.1)
 # Split the dataset
 train, val, test = df[:train_len], df[train_len:train_len + val_len], df[train_len + val_len:]
 
-# Separate features and target
-train_x, train_y = train.drop(["price actual"], axis=1), train["price actual"]
-val_x, val_y = val.drop(["price actual"], axis=1), val["price actual"]
-test_x, test_y = test.drop(["price actual"], axis=1), test["price actual"]
-
 # Create directories if they do not exist
 os.makedirs("../dataset/processed/train", exist_ok=True)
 os.makedirs("../dataset/processed/val", exist_ok=True)
 os.makedirs("../dataset/processed/test", exist_ok=True)
 
 # Save the datasets
-train_x.to_csv("../dataset/processed/train/train_x.csv", index=False)
-train_y.to_csv("../dataset/processed/train/train_y.csv", index=False)
-val_x.to_csv("../dataset/processed/val/val_x.csv", index=False)
-val_y.to_csv("../dataset/processed/val/val_y.csv", index=False)
-test_x.to_csv("../dataset/processed/test/test_x.csv", index=False)
-test_y.to_csv("../dataset/processed/test/test_y.csv", index=False)
-
+train.to_csv("../dataset/processed/train/train.csv", index=False)
+val.to_csv("../dataset/processed/val/val.csv", index=False)
+test.to_csv("../dataset/processed/test/test.csv", index=False)
 
 
