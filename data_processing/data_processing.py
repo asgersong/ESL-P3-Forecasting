@@ -64,7 +64,7 @@ print(df.head())
 import numpy as np
 
 # set zero values to NaN
-df = pd.read_csv("simplified_dataset.csv")
+df = pd.read_csv("../dataset/processed/simplified_dataset.csv")
 df = df.replace(0.0, np.nan)
 
 # count the number of missing values
