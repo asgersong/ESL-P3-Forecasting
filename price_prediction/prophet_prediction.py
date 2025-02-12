@@ -1,4 +1,6 @@
 """Prophet prediction model for electricity price forecasting."""
+from pyexpat import model
+from turtle import mode
 import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
@@ -15,9 +17,9 @@ def load_and_prepare_data(filepath):
     return train[["ds", "y"]]
 
 
-def train_model(train, changepoint_prior_scale=0.05):
+def train_model(model_config, train):
     """Train a Prophet model on the given dataset."""
-    model = Prophet(changepoint_prior_scale=changepoint_prior_scale)
+    model = Prophet(**model_config)
     model.fit(train)
     return model
 
@@ -57,12 +59,12 @@ def load_model(filepath):
     return model
 
 
-def main(saved_model=None):
+def main(model_config = {}, saved_model=None):
     filepath = "../dataset/processed/train/train.csv"
     filepath_val = "../dataset/processed/val/val.csv"
 
     train_data = load_and_prepare_data(filepath)
-    model = train_model(train_data) if not saved_model else load_model(saved_model)
+    model = train_model(model_config, train_data) if not saved_model else load_model(saved_model)
 
     save_model(model, "prophet_model.json")
 
@@ -71,5 +73,9 @@ def main(saved_model=None):
 
 
 if __name__ == "__main__":
-    # main()
-    main(saved_model="prophet_model.json")
+    model_config = {
+        "changepoint_prior_scale": 0.05, #default 0.05
+        "growth": "flat", #default "linear"
+    }
+    main(model_config)
+    # main(saved_model="prophet_model.json")
