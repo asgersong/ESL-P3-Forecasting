@@ -8,11 +8,15 @@ from matplotlib.pylab import rcParams
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.seasonal import seasonal_decompose
 import pmdarima as pm
+from tqdm import tqdm
 
 
 df = pd.read_csv(
     "dataset/processed/train/train.csv", parse_dates=["time"], index_col="time"
 )
+
+#take the first year of the data
+
 
 result = seasonal_decompose(df["price actual"], model="additative", period=24)
 
@@ -36,6 +40,8 @@ axes[3].set_ylabel("Residual")
 
 plt.tight_layout()
 plt.show()
+
+
 
 SARIMAX_model = pm.auto_arima(
     df["price actual"],
