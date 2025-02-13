@@ -16,7 +16,7 @@ df = pd.read_csv(
 )
 
 #take the first year of the data
-
+df = df[: 24 * 30]
 
 result = seasonal_decompose(df["price actual"], model="additative", period=24)
 
