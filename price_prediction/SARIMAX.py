@@ -1,3 +1,4 @@
+from importlib import simple
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -10,7 +11,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 import pmdarima as pm
 from tqdm import tqdm
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 df = pd.read_csv(
     "dataset/processed/train/train.csv", parse_dates=["time"], index_col="time"
@@ -52,11 +53,17 @@ print(df["price actual"].describe(include="all"))
 print(exog_train.head())
 print(df["price actual"].head())
 
+# plot_acf(df["price actual"], lags=365)
+# plt.show()
+# plot_pacf(df["price actual"], lags=365)
+# plt.show()
+
 # Initialize variables
 n_periods = 24
-train_size = 1000
+train_size = 200
 test_size = 120
 predictions = []
+predictions_var = []
 
 # Fit the initial model
 SARIMAX_model = SARIMAX(
@@ -64,16 +71,26 @@ SARIMAX_model = SARIMAX(
     exog=exog_train[:train_size],
     order=(1, 1, 1),
     seasonal_order=(1, 1, 1, 24),
+    simple_differencing=False,
 )
-SARIMAX_result = SARIMAX_model.fit(disp=False)
+# Initialize progress bar
+progress = tqdm(total=100, desc="Training Auto-ARIMA", bar_format="{l_bar}{bar} [ time left: {remaining} ]")
+
+def update_progress(*args, **kwargs):
+    progress.update(2)
+
+SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
+progress.close()
 
 # Loop to predict and update the model
-for i in range(0, test_size, n_periods):
+for i in tqdm(range(0, test_size, n_periods), desc="Forecasting", bar_format="{l_bar}{bar} [ time left: {remaining} ]"):
+    
     # Forecast
     forecast = SARIMAX_result.get_forecast(
         steps=n_periods, exog=exog_train[train_size + i : train_size + i + n_periods]
     )
     predictions.extend(forecast.predicted_mean)
+    predictions_var.extend(forecast.var_pred_mean)
 
     # Update the model with new data
     SARIMAX_result = SARIMAX_result.append(
@@ -85,6 +102,12 @@ for i in range(0, test_size, n_periods):
 # Plot the results
 plt.plot(df.index[:train_size], df["price actual"][:train_size], label="Train")
 plt.plot(df.index[train_size : train_size + test_size], predictions, label="Forecast")
+plt.fill_between(
+    df.index[train_size : train_size + test_size],
+    predictions - np.sqrt(predictions_var),
+    predictions + np.sqrt(predictions_var),
+    alpha=0.2,
+)
 plt.plot(
     df.index[train_size : train_size + test_size],
     df["price actual"][train_size : train_size + test_size],
