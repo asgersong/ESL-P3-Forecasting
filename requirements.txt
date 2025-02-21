@@ -3,3 +3,5 @@ torch
 prophet
 numpy
 plotly
+statsmodels
+pmdarima
