@@ -33,6 +33,7 @@ print(f"Training data ends: {train_end}")
 print(f"Test data starts: {test_start}")
 print(f"Gap between train and test: {test_start - train_end}")
 
+df_test_original = df_test.copy()
 
 # remove unnecessary columns in test data
 df_test_y = df_test["y"]
@@ -47,7 +48,6 @@ df_test = df_test.drop(
         "total_load_actual",
     ]
 )
-
 
 # Define function to create model
 def create_model(model_config, regressors):
@@ -72,7 +72,7 @@ def train_rolling(
     model = None
 
     # Store original test data for creating proper next training data
-    original_test_data = test_data.copy()
+    original_test_data = df_test_original.copy()
 
     num_iterations = len(test_data) // forecast_period + (
         len(test_data) % forecast_period > 0
@@ -84,10 +84,12 @@ def train_rolling(
         model = create_model(model_config, regressors)
         model.fit(train_data)
 
+        print(f"Training: {train_data['ds'].min()} to {train_data['ds'].max()}")
+
         # Forecast next period
         horizon = min(forecast_period, len(test_data))
-        future = test_data.iloc[:horizon].copy()
-        # future = model.make_future_dataframe(periods=horizon, freq="h", include_history=False)
+        # future = test_data.iloc[:horizon].copy()
+        future = model.make_future_dataframe(periods=horizon, freq="h")
 
         # # Add regressors
         # for regressor in regressors:
@@ -96,27 +98,27 @@ def train_rolling(
         print(f"History: {model.history['ds'].min()} to {model.history['ds'].max()}")
         print(f"Forecasting: {future['ds'].min()} to {future['ds'].max()} \n")
 
-        # ensure that model.history does not contain future data
-        assert future["ds"].min() > model.history["ds"].max(), "Data leakage detected"
+        # # ensure that model.history does not contain future data
+        # assert future["ds"].min() > model.history["ds"].max(), "Data leakage detected"
 
         # make predictions
         forecast = model.predict(future)
 
-        # Store results
-        y_true, y_pred = df_test_y.loc[future.index].values, forecast["yhat"].values
-        mae, rmse = (
-            mean_absolute_error(y_true, y_pred),
-            mean_squared_error(y_true, y_pred) ** 0.5,
-        )
-        mae_list.append(mae)
-        rmse_list.append(rmse)
+        # # Store results
+        # y_true, y_pred = df_test_y.loc[future.index].values, forecast["yhat"].values
+        # mae, rmse = (
+        #     mean_absolute_error(y_true, y_pred),
+        #     mean_squared_error(y_true, y_pred) ** 0.5,
+        # )
+        # mae_list.append(mae)
+        # rmse_list.append(rmse)
 
-        print(
-            f"Forecast from {future['ds'].min()} to {future['ds'].max()} \
-                -> MAE: {mae:.4f}, RMSE: {rmse:.4f}"
-        )
+        # print(
+        #     f"Forecast from {future['ds'].min()} to {future['ds'].max()} \
+        #         -> MAE: {mae:.4f}, RMSE: {rmse:.4f}"
+        # )
 
-        all_forecasts.append(forecast)
+        all_forecasts.append(forecast.where(forecast["ds"] >= model.history["ds"].max()))
 
         # Move forecasted data into training set
         train_data = pd.concat(
@@ -182,21 +184,21 @@ def plot(model: Prophet, forecast_log, prior_horizon=24, forecast_horizon=24):
 
 if __name__ == "__main__":
     # Select ex-regressors
-    regressors = [
-        "day_of_week",
-        "hour_of_day",
-        "price_actual_lag_24h",
-        "price_actual_lag_1w",
-        "price_actual_lag_2w",
-        "price_actual_lag_3w",
-        "price_actual_lag_4w",
-        "fossil_fuels_lag_24h",
-        "windpower_lag_24h",
-        "solarpower_lag_24h",
-        "other_green_energy_lag_24h",
-        "total_load_actual_lag_24h",
-    ]
-    # regressors = []
+    # regressors = [
+    #     "day_of_week",
+    #     "hour_of_day",
+    #     "price_actual_lag_24h",
+    #     "price_actual_lag_1w",
+    #     "price_actual_lag_2w",
+    #     "price_actual_lag_3w",
+    #     "price_actual_lag_4w",
+    #     "fossil_fuels_lag_24h",
+    #     "windpower_lag_24h",
+    #     "solarpower_lag_24h",
+    #     "other_green_energy_lag_24h",
+    #     "total_load_actual_lag_24h",
+    # ]
+    regressors = []
 
     model_config = {
         "changepoint_prior_scale": 0.001,  # default 0.05
@@ -204,28 +206,30 @@ if __name__ == "__main__":
         "holidays_prior_scale": 0.01,  # default 10.0
     }
 
-    # model, df_forecasts, mae_list, rmse_list = train_rolling(
-    #     forecast_horizon=20,
-    #     forecast_period=24,
-    #     model_config=model_config,
-    #     regressors=regressors
-    # )
+    model, df_forecasts, mae_list, rmse_list = train_rolling(
+        forecast_horizon=10,
+        forecast_period=24,
+        model_config=model_config,
+        regressors=regressors
+    )
 
-    # # # Print overall metrics
+    # # Print overall metrics
     # print(f"Overall MAE: {np.mean(mae_list):.4f}")
     # print(f"Overall RMSE: {np.mean(rmse_list):.4f}")
 
-    # # save the model and forecast
-    # with open("saved_models/model_new.json", "w", encoding="utf-8") as fout:
-    #     json.dump(model_to_json(model), fout)
+    # save the model and forecast
+    with open("saved_models/model_new.json", "w", encoding="utf-8") as fout:
+        json.dump(model_to_json(model), fout)
 
-    # df_forecasts.to_csv("forecasts/df_forecasts_new.csv")
+    df_forecasts.to_csv("forecasts/df_forecasts_new.csv")
 
     # # plot the forecast
     # best_params_str = "_changepoint_prior_scale_0.001_seasonality_prior_scale_0.01_holidays_prior_scale_0.01"
     # suffix = "_no_ylags"
     # suffix = "_all_with_lags"
     suffix = "_new"
+    # suffix = "_no_24hy"
+    # suffix = "_no_ylags"
     # suffix = "_no_ex"
     model = model_from_json(
         json.load(open(f"saved_models/model{suffix}.json", "r", encoding="utf-8"))
@@ -233,7 +237,7 @@ if __name__ == "__main__":
     forecast_log = pd.read_csv(
         f"forecasts/df_forecasts{suffix}.csv", parse_dates=["ds"]
     )
-    plot(model, forecast_log, 24 * 7, 24 * 20)
+    plot(model, forecast_log, 24 * 7, 24 * 1)
 
     # model_config_grid = {
     #     "changepoint_prior_scale": [0.001, 0.01, 0.1, 0.5],
