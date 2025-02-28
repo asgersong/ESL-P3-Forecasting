@@ -12,6 +12,7 @@ import pmdarima as pm
 from tqdm import tqdm
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 df = pd.read_csv(
     "dataset/processed/train/train.csv", parse_dates=["time"], index_col="time"
@@ -19,8 +20,6 @@ df = pd.read_csv(
 
 # take the first year of the data
 # print(df.describe(include="all"))
-
-
 # result = seasonal_decompose(df["price actual"], model="additative", period=24)
 
 # trend = result.trend
@@ -44,14 +43,24 @@ df = pd.read_csv(
 # plt.tight_layout()
 # plt.show()
 
-exog_train = df[["windpower", "solarpower"]].shift(24)
+exog_train = df[
+    [
+        "total_load_actual",
+        "hour_of_day",
+        "windpower",
+        "solarpower",
+        "fossil_fuels",
+        "other_green_energy",
+    ]
+].shift(24)
+exog_train["day_of_week"] = df.index.dayofweek
 exog_train = exog_train[24:]
 df = df[24:]
 
 print(exog_train.describe(include="all"))
-print(df["price actual"].describe(include="all"))
+print(df["price_actual"].describe(include="all"))
 print(exog_train.head())
-print(df["price actual"].head())
+print(df["price_actual"].head())
 
 # plot_acf(df["price actual"], lags=365)
 # plt.show()
@@ -60,31 +69,64 @@ print(df["price actual"].head())
 
 # Initialize variables
 n_periods = 24
-train_size = 200
-test_size = 120
+train_size = 168*12
+test_size = 168*4
 predictions = []
 predictions_var = []
 
 # Fit the initial model
 SARIMAX_model = SARIMAX(
-    df["price actual"][:train_size],
+    df["price_actual"][:train_size],
     exog=exog_train[:train_size],
-    order=(1, 1, 1),
+    order=(3, 1, 1),
     seasonal_order=(1, 1, 1, 24),
     simple_differencing=False,
 )
+
+# Automatically find optimal SARIMAX parameters
+# model = pm.auto_arima(
+#     df["price_actual"][:train_size],
+#     exogenous=exog_train[:train_size],
+#     seasonal=True,
+#     m=24,  # Seasonal period
+#     trace=True,
+#     error_action="ignore",
+#     suppress_warnings=True,
+#     stepwise=True,
+# )
+
+# print(model.summary())
+
+# # Refit the model with optimal parameters
+# SARIMAX_model = SARIMAX(
+#     df["price_actual"][:train_size],
+#     exog=exog_train[:train_size],
+#     order=model.order,
+#     seasonal_order=model.seasonal_order,
+# )
+# SARIMAX_result = SARIMAX_model.fit()
+
+
 # Initialize progress bar
-progress = tqdm(total=100, desc="Training Auto-ARIMA", bar_format="{l_bar}{bar} [ time left: {remaining} ]")
+progress = tqdm(
+    total=100,
+    desc="Training Auto-ARIMA",
+    bar_format="{l_bar}{bar} [ time left: {remaining} ]",
+)
 
 def update_progress(*args, **kwargs):
     progress.update(2)
 
 SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
 progress.close()
+print(SARIMAX_result.summary())
 
 # Loop to predict and update the model
-for i in tqdm(range(0, test_size, n_periods), desc="Forecasting", bar_format="{l_bar}{bar} [ time left: {remaining} ]"):
-    
+for i in tqdm(
+    range(0, test_size, n_periods),
+    desc="Forecasting",
+    bar_format="{l_bar}{bar} [ time left: {remaining} ]",
+):
     # Forecast
     forecast = SARIMAX_result.get_forecast(
         steps=n_periods, exog=exog_train[train_size + i : train_size + i + n_periods]
@@ -94,13 +136,30 @@ for i in tqdm(range(0, test_size, n_periods), desc="Forecasting", bar_format="{l
 
     # Update the model with new data
     SARIMAX_result = SARIMAX_result.append(
-        df["price actual"][train_size + i : train_size + i + n_periods],
+        df["price_actual"][train_size + i : train_size + i + n_periods],
         exog=exog_train[train_size + i : train_size + i + n_periods],
-        refit=True,
+        refit=False,
     )
+    # print(SARIMAX_result.summary())
+    
+    # Calculate MAE and RMSE
+    actual = df["price_actual"][train_size : train_size + len(predictions)]
+    mae = mean_absolute_error(actual, predictions)
+    rmse = np.sqrt(mean_squared_error(actual, predictions))
+
+    print(f"Mean Absolute Error (MAE): {mae}")
+    print(f"Root Mean Squared Error (RMSE): {rmse}")
+
+# MAE and RMSE
+actual = df["price_actual"][train_size : train_size + len(predictions)]
+mae = mean_absolute_error(actual, predictions)
+rmse = np.sqrt(mean_squared_error(actual, predictions))
+
+print(f"Mean Absolute Error (MAE): {mae}")
+print(f"Root Mean Squared Error (RMSE): {rmse}")
 
 # Plot the results
-plt.plot(df.index[:train_size], df["price actual"][:train_size], label="Train")
+plt.plot(df.index[:train_size], df["price_actual"][:train_size], label="Train")
 plt.plot(df.index[train_size : train_size + test_size], predictions, label="Forecast")
 plt.fill_between(
     df.index[train_size : train_size + test_size],
@@ -110,7 +169,7 @@ plt.fill_between(
 )
 plt.plot(
     df.index[train_size : train_size + test_size],
-    df["price actual"][train_size : train_size + test_size],
+    df["price_actual"][train_size : train_size + test_size],
     label="Actual",
 )
 plt.legend()
