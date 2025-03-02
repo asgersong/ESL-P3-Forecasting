@@ -6,9 +6,9 @@
     "configurations": [
         {
             "name": "Launch Python Program",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/price_prediction/prophet/prophet_prediction.py",
+            "program": "${workspaceFolder}/price_prediction/prophet/rolling_forecast.py",
             "cwd": "${workspaceFolder}/price_prediction/prophet",
         }
     ]

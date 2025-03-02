@@ -5,3 +5,5 @@ numpy
 plotly
 statsmodels
 pmdarima
+nbformat
+scikit-learn
