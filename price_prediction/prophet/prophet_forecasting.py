@@ -92,6 +92,11 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6):
         df_cv = f_cv[f_cv["cutoff"] == fc]
         ax.plot(df_cv["ds"], df_cv["yhat"], color="orange", linestyle="--")
 
+    # add shared labels for forecasts
+    ax.plot(
+        df_cv["ds"], df_cv["yhat"], color="orange", linestyle="--", label="Forecast"
+    )
+
     ax.grid()
     ax.legend()
 
