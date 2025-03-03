@@ -8,7 +8,7 @@
             "name": "Launch Python Program",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/price_prediction/prophet/rolling_forecast.py",
+            "program": "${workspaceFolder}/price_prediction/prophet/prophet_forecasting.py",
             "cwd": "${workspaceFolder}/price_prediction/prophet",
         }
     ]

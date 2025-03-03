@@ -28,30 +28,18 @@ df_test["ds"] = pd.to_datetime(df_test["ds"], format="%Y-%m-%d %H:%M:%S")
 df_train = df_train.sort_values("ds")
 df_test = df_test.sort_values("ds")
 
-df_train = df_train.drop(
-    columns=[
-        "price_day_ahead",
-        "fossil_fuels",
-        "windpower",
-        "solarpower",
-        "other_green_energy",
-        "total_load_actual",
-    ]
-)
+columns_to_drop = [
+    "price_day_ahead",
+    "fossil_fuels",
+    "windpower",
+    "solarpower",
+    "other_green_energy",
+    "total_load_actual",
+]
 
-# remove unnecessary columns in test data
-df_test_y = df_test["y"]
-df_test = df_test.drop(
-    columns=[
-        "y",
-        "price_day_ahead",
-        "fossil_fuels",
-        "windpower",
-        "solarpower",
-        "other_green_energy",
-        "total_load_actual",
-    ]
-)
+# Drop columns that are not needed for the model
+df_test = df_test.drop(columns=columns_to_drop)
+df_train = df_train.drop(columns=columns_to_drop)
 
 
 def create_model(m_conf, r, ex_regressor_prior_scale):
@@ -139,7 +127,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6):
         ax.tick_params(axis="x", rotation=45)
 
         ax.grid()
-        ax.legend()
+        ax.legend(loc="upper right")
 
         # Calculate RMSE and MAE for this forecast
         y_true = h.set_index("ds").loc[df_cv["ds"]].reset_index()["y"].values
@@ -153,7 +141,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6):
 
 
 if __name__ == "__main__":
-    SUFFIX = "_final"
+    SUFFIX = "_final_more_data"
     TRAIN = False
 
     if TRAIN:
@@ -180,11 +168,11 @@ if __name__ == "__main__":
             "ex_regressor_prior_scale": 1.0,  # default None
         }
 
-        model = train_model(model_config, regressors)
+        model = train_model(model_config, regressors, pd.concat([df_train, df_test]))
         forecasts_cv = cross_validation(
             model,
-            initial="1000 days",
-            period="4 days",
+            initial="100 days",
+            period="13 days",
             horizon="24 hours",
             parallel="processes",
         )
@@ -258,4 +246,10 @@ if __name__ == "__main__":
     # best_params = all_params[np.argmin(rmses)]
     # print(f'\n\n Best params: {best_params}')
 
-    ## RESULT: Best params: {'changepoint_prior_scale': 0.5, 'seasonality_prior_scale': 1.0, 'holidays_prior_scale': 0.001, 'ex_regressor_prior_scale': 1.0}
+    ## RESULT: Best params:
+    # {
+    # 'changepoint_prior_scale': 0.5,
+    # 'seasonality_prior_scale': 1.0,
+    # 'holidays_prior_scale': 0.001,
+    # 'ex_regressor_prior_scale': 1.0
+    # }
