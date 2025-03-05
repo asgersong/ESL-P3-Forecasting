@@ -47,7 +47,7 @@ def create_model(m_conf, r, ex_regressor_prior_scale):
     model_config_copy = m_conf.copy()
     model_config_copy.pop("ex_regressor_prior_scale", None)
     m = Prophet(**model_config_copy)
-    # m.add_country_holidays(country_name="ES")  # Add Spanish holidays
+    m.add_country_holidays(country_name="ES")  # Add Spanish holidays
     for regressor in r:
         m.add_regressor(regressor, prior_scale=ex_regressor_prior_scale)
     return m
@@ -145,7 +145,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
 
 
 if __name__ == "__main__":
-    SUFFIX = "_final_no_holidays"
+    SUFFIX = "_final"
     TRAIN = False
 
     if TRAIN:
