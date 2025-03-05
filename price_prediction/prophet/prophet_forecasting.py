@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
 from prophet import Prophet
+from prophet.plot import plot_components
 from prophet.diagnostics import cross_validation, performance_metrics
 from prophet.serialize import model_to_json, model_from_json
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -92,6 +93,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
     rmse = mean_squared_error(f_cv["y"], f_cv["yhat"]) ** 0.5
     mae = mean_absolute_error(f_cv["y"], f_cv["yhat"])
     ax.set_title(f"Overall RMSE: {rmse:.4f}, MAE: {mae:.4f}")
+    print(f"Overall RMSE: {rmse:.4f}, MAE: {mae:.4f}")
 
     # Plot randomly selected forecasts
     random_cutoffs = np.random.choice(unique_cutoffs, num_plots, replace=False)
@@ -136,17 +138,22 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
         mae = mean_absolute_error(y_true, y_pred)
         ax.set_title(f"RMSE: {rmse:.4f}, MAE: {mae:.4f}")
 
+    # plot components
+    fcst = m.predict()  # dummy forecast to get components
+    fig_c = plot_components(m, fcst)
+
     plt.tight_layout()
     plt.show()
 
     # Save the plots
     fig_a.savefig(f"plots/overview{suffix}.png")
     fig_b.savefig(f"plots/forecast_random{suffix}.png")
+    fig_c.savefig(f"plots/components{suffix}.png")
 
 
 if __name__ == "__main__":
-    SUFFIX = "_final"
-    TRAIN = False
+    SUFFIX = "_with_weather"
+    TRAIN = True
 
     if TRAIN:
         # Select ex-regressors
@@ -163,20 +170,23 @@ if __name__ == "__main__":
             "solarpower_lag_24h",
             "other_green_energy_lag_24h",
             "total_load_actual_lag_24h",
+            "temp_lag_24h",
+            "wind_speed_lag_24h",
+            "clouds_all_lag_24h"
         ]
 
         model_config = {
             "changepoint_prior_scale": 0.5,  # default 0.05
             "seasonality_prior_scale": 1.0,  # default 10.0
             "holidays_prior_scale": 0.001,  # default 10.0
-            "ex_regressor_prior_scale": 1.0,  # default None
+            "ex_regressor_prior_scale": 0.5,  # default None
         }
 
         model = train_model(model_config, regressors, pd.concat([df_train, df_test]))
         forecasts_cv = cross_validation(
             model,
             initial="100 days",
-            period="13 days",
+            period="16 days",
             horizon="24 hours",
             parallel="processes",
         )
