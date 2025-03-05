@@ -96,7 +96,8 @@ progress = tqdm(
 def update_progress(*args, **kwargs):
     progress.update(2)
 
-df = df[:train_size + period + horizon]
+
+df = df[: train_size + period + horizon]
 # load model if exists
 if os.path.exists(f"price_prediction/SARIMAX/models/{model_name}"):
     SARIMAX_result = SARIMAXResults.load(
@@ -166,7 +167,7 @@ for i in tqdm(
     predictions_index.extend(df.index[train_size + i : train_size + i + horizon])
 
     # Calculate MAE and RMSE
-    actual = df["price_actual"][train_size : train_size + len(predictions)]
+    actual = df["price_actual"].loc[predictions_index]
     mae = mean_absolute_error(actual[-horizon:], predictions[-horizon:])
     rmse = np.sqrt(mean_squared_error(actual[-horizon:], predictions[-horizon:]))
 
@@ -183,9 +184,11 @@ for i in tqdm(
     #     refit=False,
     # )
 
+    if i + period >= len(df) - train_size:
+        break
     SARIMAX_model = SARIMAX(
-        df["price_actual"][: train_size + i],
-        exog=exog_train[: train_size + i],
+        df["price_actual"][: train_size + period + i],
+        exog=exog_train[: train_size + period + i],
         order=SARIMAX_model.order,
         seasonal_order=SARIMAX_model.seasonal_order,
         simple_differencing=False,
@@ -194,7 +197,7 @@ for i in tqdm(
 
 
 # MAE and RMSE
-actual = df["price_actual"][train_size : train_size + len(predictions)]
+actual = df["price_actual"].loc[predictions_index]
 mae = mean_absolute_error(actual, predictions)
 rmse = np.sqrt(mean_squared_error(actual, predictions))
 
@@ -212,11 +215,15 @@ plt.plot(
 )
 plt.legend()
 for i in range(0, len(predictions), horizon):
-    plt.plot(predictions_index[i: i + horizon], predictions[i: i + horizon], label="Forecast")
+    plt.plot(
+        predictions_index[i : i + horizon],
+        predictions[i : i + horizon],
+        label="Forecast",
+    )
     plt.fill_between(
-        predictions_index[i: i + horizon],
-        predictions[i: i + horizon] - np.sqrt(predictions_var[i: i + horizon]),
-        predictions[i: i + horizon] + np.sqrt(predictions_var[i: i + horizon]),
+        predictions_index[i : i + horizon],
+        predictions[i : i + horizon] - np.sqrt(predictions_var[i : i + horizon]),
+        predictions[i : i + horizon] + np.sqrt(predictions_var[i : i + horizon]),
         alpha=0.2,
     )
 plt.show()
