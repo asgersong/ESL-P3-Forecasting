@@ -47,7 +47,7 @@ def create_model(m_conf, r, ex_regressor_prior_scale):
     model_config_copy = m_conf.copy()
     model_config_copy.pop("ex_regressor_prior_scale", None)
     m = Prophet(**model_config_copy)
-    m.add_country_holidays(country_name="ES")  # Add Spanish holidays
+    # m.add_country_holidays(country_name="ES")  # Add Spanish holidays
     for regressor in r:
         m.add_regressor(regressor, prior_scale=ex_regressor_prior_scale)
     return m
@@ -64,11 +64,11 @@ def train_model(m_conf=None, r=None, df=df_train):
     return m
 
 
-def plot_forecasts(m: Prophet, f_cv, num_plots=6):
+def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
     """
     Plots the model's actual values and forecasts.
     """
-    _, ax = plt.subplots(figsize=(10, 6))
+    fig_a, ax = plt.subplots(figsize=(10, 6))
     h = m.history.copy()
 
     # Plot actual values
@@ -97,7 +97,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6):
     random_cutoffs = np.random.choice(unique_cutoffs, num_plots, replace=False)
     n_cols = 3
     n_rows = (num_plots + n_cols - 1) // n_cols
-    _, axs = plt.subplots(n_rows, n_cols, figsize=(10, 3 * n_rows))
+    fig_b, axs = plt.subplots(n_rows, n_cols, figsize=(10, 3 * n_rows))
     axs = axs.flatten()
 
     for i, fc in enumerate(random_cutoffs):
@@ -139,9 +139,13 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6):
     plt.tight_layout()
     plt.show()
 
+    # Save the plots
+    fig_a.savefig(f"plots/overview{suffix}.png")
+    fig_b.savefig(f"plots/forecast_random{suffix}.png")
+
 
 if __name__ == "__main__":
-    SUFFIX = "_final_more_data"
+    SUFFIX = "_final_no_holidays"
     TRAIN = False
 
     if TRAIN:
@@ -192,7 +196,7 @@ if __name__ == "__main__":
     forecasts_cv = pd.read_csv(f"forecasts/f_cv{SUFFIX}.csv", parse_dates=["ds"])
     df_p = pd.read_csv(f"forecasts/df_p{SUFFIX}.csv")
 
-    plot_forecasts(model, forecasts_cv, 9)
+    plot_forecasts(model, forecasts_cv, 9, SUFFIX)
 
     ######## HYPERPARAMETER TUNING ########
     # import itertools
