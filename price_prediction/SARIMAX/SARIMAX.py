@@ -17,9 +17,15 @@ from statsmodels.tsa.statespace.sarimax import SARIMAXResults
 from statsmodels.tsa.stattools import adfuller
 from tqdm import tqdm
 
-df = pd.read_csv(
+df_train = pd.read_csv(
     "dataset/processed/train/train.csv", parse_dates=["time"], index_col="time"
 )
+
+df_test = pd.read_csv(
+    "dataset/processed/test/test.csv", parse_dates=["time"], index_col="time"
+)
+
+df = pd.concat([df_train, df_test], axis=0)
 
 # take the first year of the data
 # print(df.describe(include="all"))
@@ -71,11 +77,12 @@ print(df["price_actual"].head())
 # plt.show()
 
 # Initialize variables
-n_periods = 24
-train_size = 168 * 12
-test_size = 168 * 4
+period = 24 * 14
+train_size = 24 * 100
+horizon = 24
 predictions = []
 predictions_var = []
+predictions_index = []
 logs = {}
 model_name = "SARIMAX_model.pkl"
 
@@ -85,12 +92,16 @@ progress = tqdm(
     bar_format="{l_bar}{bar} [ time left: {remaining} ]",
 )
 
+
 def update_progress(*args, **kwargs):
     progress.update(2)
 
+df = df[:train_size + period + horizon]
 # load model if exists
 if os.path.exists(f"price_prediction/SARIMAX/models/{model_name}"):
-    SARIMAX_result = SARIMAXResults.load(f"price_prediction/SARIMAX/models/{model_name}")
+    SARIMAX_result = SARIMAXResults.load(
+        f"price_prediction/SARIMAX/models/{model_name}"
+    )
     SARIMAX_model = SARIMAX_result.model
 else:
     # Fit the initial model
@@ -126,10 +137,10 @@ else:
     # SARIMAX_result = SARIMAX_model.fit()
 
     # Initialize progress bar
-        
+
     SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
     progress.close()
-    
+
     # save the model
     os.makedirs("models", exist_ok=True)
     SARIMAX_result.save(f"price_prediction/SARIMAX/models/{model_name}")
@@ -142,35 +153,45 @@ logs["summary"] = SARIMAX_result.summary().as_text()
 
 # Loop to predict and update the model
 for i in tqdm(
-    range(0, test_size, n_periods),
+    range(0, len(df) - train_size, period),
     desc="Forecasting",
     bar_format="{l_bar}{bar} [ time left: {remaining} ]",
 ):
     # Forecast
     forecast = SARIMAX_result.get_forecast(
-        steps=n_periods, exog=exog_train[train_size + i : train_size + i + n_periods]
+        steps=horizon, exog=exog_train[train_size + i : train_size + i + horizon]
     )
     predictions.extend(forecast.predicted_mean)
     predictions_var.extend(forecast.var_pred_mean)
-
-    # Update the model with new data
-    SARIMAX_result = SARIMAX_result.append(
-        df["price_actual"][train_size + i : train_size + i + n_periods],
-        exog=exog_train[train_size + i : train_size + i + n_periods],
-        refit=False,
-    )
-    # print(SARIMAX_result.summary())
+    predictions_index.extend(df.index[train_size + i : train_size + i + horizon])
 
     # Calculate MAE and RMSE
     actual = df["price_actual"][train_size : train_size + len(predictions)]
-    mae = mean_absolute_error(actual, predictions)
-    rmse = np.sqrt(mean_squared_error(actual, predictions))
+    mae = mean_absolute_error(actual[-horizon:], predictions[-horizon:])
+    rmse = np.sqrt(mean_squared_error(actual[-horizon:], predictions[-horizon:]))
 
     print(f"Mean Absolute Error (MAE): {mae}")
     print(f"Root Mean Squared Error (RMSE): {rmse}")
 
     logs[f"MAE_{i}"] = mae
     logs[f"RMSE_{i}"] = rmse
+
+    # Update the model with new data
+    # SARIMAX_result = SARIMAX_result.append(
+    #     df["price_actual"][train_size + i : train_size + i + n_periods],
+    #     exog=exog_train[train_size + i : train_size + i + n_periods],
+    #     refit=False,
+    # )
+
+    SARIMAX_model = SARIMAX(
+        df["price_actual"][: train_size + i],
+        exog=exog_train[: train_size + i],
+        order=SARIMAX_model.order,
+        seasonal_order=SARIMAX_model.seasonal_order,
+        simple_differencing=False,
+    )
+    SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
+
 
 # MAE and RMSE
 actual = df["price_actual"][train_size : train_size + len(predictions)]
@@ -184,20 +205,20 @@ logs["MAE"] = mae
 logs["RMSE"] = rmse
 
 # Plot the results
-plt.plot(df.index[:train_size], df["price_actual"][:train_size], label="Train")
-plt.plot(df.index[train_size : train_size + test_size], predictions, label="Forecast")
-plt.fill_between(
-    df.index[train_size : train_size + test_size],
-    predictions - np.sqrt(predictions_var),
-    predictions + np.sqrt(predictions_var),
-    alpha=0.2,
-)
 plt.plot(
-    df.index[train_size : train_size + test_size],
-    df["price_actual"][train_size : train_size + test_size],
+    df.index,
+    df["price_actual"],
     label="Actual",
 )
 plt.legend()
+for i in range(0, len(predictions), horizon):
+    plt.plot(predictions_index[i: i + horizon], predictions[i: i + horizon], label="Forecast")
+    plt.fill_between(
+        predictions_index[i: i + horizon],
+        predictions[i: i + horizon] - np.sqrt(predictions_var[i: i + horizon]),
+        predictions[i: i + horizon] + np.sqrt(predictions_var[i: i + horizon]),
+        alpha=0.2,
+    )
 plt.show()
 print(SARIMAX_result.summary())
 
