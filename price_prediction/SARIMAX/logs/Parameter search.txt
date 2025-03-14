@@ -1,0 +1,51 @@
+Performing stepwise search to minimize aic
+ ARIMA(2,1,2)(1,0,1)[24] intercept   : AIC=inf, Time=16.50 sec
+ ARIMA(0,1,0)(0,0,0)[24] intercept   : AIC=14748.513, Time=0.04 sec
+ ARIMA(1,1,0)(1,0,0)[24] intercept   : AIC=12920.961, Time=2.17 sec
+ ARIMA(0,1,1)(0,0,1)[24] intercept   : AIC=13497.890, Time=2.68 sec
+ ARIMA(0,1,0)(0,0,0)[24]             : AIC=14746.515, Time=0.08 sec
+ ARIMA(1,1,0)(0,0,0)[24] intercept   : AIC=13966.284, Time=0.19 sec
+ ARIMA(1,1,0)(2,0,0)[24] intercept   : AIC=inf, Time=41.47 sec
+ ARIMA(1,1,0)(1,0,1)[24] intercept   : AIC=inf, Time=4.60 sec
+ ARIMA(1,1,0)(0,0,1)[24] intercept   : AIC=13440.872, Time=2.00 sec
+ ARIMA(1,1,0)(2,0,1)[24] intercept   : AIC=inf, Time=78.80 sec
+ ARIMA(0,1,0)(1,0,0)[24] intercept   : AIC=12991.072, Time=0.88 sec
+ ARIMA(2,1,0)(1,0,0)[24] intercept   : AIC=12922.187, Time=2.52 sec
+ ARIMA(1,1,1)(1,0,0)[24] intercept   : AIC=12922.402, Time=2.73 sec
+ ARIMA(0,1,1)(1,0,0)[24] intercept   : AIC=12926.983, Time=1.51 sec
+ ARIMA(2,1,1)(1,0,0)[24] intercept   : AIC=12923.800, Time=5.07 sec
+ ARIMA(1,1,0)(1,0,0)[24]             : AIC=12918.962, Time=0.79 sec
+ ARIMA(1,1,0)(0,0,0)[24]             : AIC=13964.284, Time=0.06 sec
+ ARIMA(1,1,0)(2,0,0)[24]             : AIC=inf, Time=5.30 sec
+ ARIMA(1,1,0)(1,0,1)[24]             : AIC=inf, Time=2.25 sec
+ ARIMA(1,1,0)(0,0,1)[24]             : AIC=13438.872, Time=0.71 sec
+ ARIMA(1,1,0)(2,0,1)[24]             : AIC=inf, Time=53.57 sec
+ ARIMA(0,1,0)(1,0,0)[24]             : AIC=12989.072, Time=0.34 sec
+ ARIMA(2,1,0)(1,0,0)[24]             : AIC=12920.188, Time=0.82 sec
+ ARIMA(1,1,1)(1,0,0)[24]             : AIC=12920.402, Time=1.20 sec
+ ARIMA(0,1,1)(1,0,0)[24]             : AIC=12924.983, Time=0.64 sec
+ ARIMA(2,1,1)(1,0,0)[24]             : AIC=12921.801, Time=2.01 sec
+
+ Best model:  ARIMA(1,1,0)(1,0,0)[24]
+Total fit time: 229.016 seconds
+                                     SARIMAX Results
+==========================================================================================
+Dep. Variable:                                  y   No. Observations:                 2400
+Model:             SARIMAX(1, 1, 0)x(1, 0, 0, 24)   Log Likelihood               -6456.481
+Date:                            Fri, 07 Mar 2025   AIC                          12918.962
+Time:                                    13:57:16   BIC                          12936.310
+Sample:                                01-28-2015   HQIC                         12925.273
+                                     - 05-08-2015
+Covariance Type:                              opg
+==============================================================================
+                 coef    std err          z      P>|z|      [0.025      0.975]
+------------------------------------------------------------------------------
+ar.L1          0.1901      0.018     10.848      0.000       0.156       0.224
+ar.S.L24       0.6682      0.012     56.108      0.000       0.645       0.691
+sigma2        12.6649      0.242     52.240      0.000      12.190      13.140
+===================================================================================
+Ljung-Box (L1) (Q):                   0.03   Jarque-Bera (JB):               702.65
+Prob(Q):                              0.87   Prob(JB):                         0.00
+Heteroskedasticity (H):               0.53   Skew:                             0.03
+Prob(H) (two-sided):                  0.00   Kurtosis:                         5.65
+===================================================================================

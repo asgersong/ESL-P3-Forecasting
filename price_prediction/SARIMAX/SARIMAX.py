@@ -55,20 +55,20 @@ df = pd.concat([df_train, df_test], axis=0)
 exog_train = df[
     [
         "day_of_week",
-        # "hour_of_day",
-        # "price_actual_lag_24h",
+        "hour_of_day",
+        "price_actual_lag_24h",
         "price_actual_lag_1w",
         "price_actual_lag_2w",
         "price_actual_lag_3w",
         "price_actual_lag_4w",
-        # "fossil_fuels_lag_24h",
-        # "windpower_lag_24h",
-        # "solarpower_lag_24h",
-        # "other_green_energy_lag_24h",
-        # "total_load_actual_lag_24h",
+        "fossil_fuels_lag_24h",
+        "windpower_lag_24h",
+        "solarpower_lag_24h",
+        "other_green_energy_lag_24h",
+        "total_load_actual_lag_24h",
         "temp_lag_24h",
-        # "wind_speed_lag_24h",
-        # "clouds_all_lag_24h"
+        "wind_speed_lag_24h",
+        "clouds_all_lag_24h"
     ]
 ]
 # exog_train = df[
@@ -103,7 +103,7 @@ predictions = []
 predictions_var = []
 predictions_index = []
 logs = {}
-model_name = "SARIMAX_model.pkl"
+model_name = "SARIMAX_model_2.pkl"
 
 progress = tqdm(
     total=100,
@@ -196,10 +196,9 @@ for i in tqdm(
     logs[f"MAE_{len(predictions) // horizon - 1 }"] = mae
     logs[f"RMSE_{len(predictions) // horizon - 1}"] = rmse
 
-
     if i + period >= len(df) - train_size:
         break
-    #Update the model with new data
+    # Update the model with new data
     SARIMAX_result = SARIMAX_result.append(
         df["price_actual"][train_size + i : train_size + i + period],
         exog=exog_train[train_size + i : train_size + i + period],
@@ -235,18 +234,19 @@ fig_a, ax = plt.subplots(figsize=(10, 6))
 ax.plot(
     df.index,
     df["price_actual"],
-    '-b',
+    "-b",
     label="Actual",
 )
 ax.set_title("Price Actual with forecasts")
 ax.legend()
+ax.tick_params(axis="x", rotation=45)
 for i in range(0, len(predictions), horizon):
     ax.plot(
         predictions_index[i : i + horizon],
         predictions[i : i + horizon],
         label="Forecast",
         color="orange",
-        linestyle='--'
+        linestyle="--",
     )
     ax.fill_between(
         predictions_index[i : i + horizon],
@@ -258,12 +258,15 @@ for i in range(0, len(predictions), horizon):
 
 # plot upclose forecasts for 9 random cutoffs
 num_forecasts = 9
-random_cutoffs = np.random.choice(len(predictions)//horizon, num_forecasts, replace=False)
+random_cutoffs = np.random.choice(
+    len(predictions) // horizon, num_forecasts, replace=False
+)
 n_cols = 3
 n_rows = (num_forecasts + n_cols - 1) // n_cols
 fig_b, axs = plt.subplots(n_rows, n_cols, figsize=(10, 3 * n_rows))
 axs = axs.flatten()
 for i, fc in enumerate(random_cutoffs):
+
     ax = axs[i]
     ax.plot(
         predictions_index[fc * horizon : (fc + 1) * horizon],
@@ -285,9 +288,12 @@ for i, fc in enumerate(random_cutoffs):
         df["price_actual"].loc[predictions_index[fc * horizon : (fc + 1) * horizon]],
         label="Actual",
     )
-    ax.set_title(f"Forecast {fc}, MAE: {logs[f'MAE_{fc}']:.2f}, RMSE: {logs[f'RMSE_{fc}']:.2f}")
+    ax.set_title(
+        f"Forecast {fc}, MAE: {logs[f'MAE_{fc}']:.2f}, RMSE: {logs[f'RMSE_{fc}']:.2f}"
+    )
     ax.legend()
-    ax.grid()  
+    ax.grid()
+    ax.tick_params(axis="x", rotation=45)
 
 plt.tight_layout()
 plt.show()
