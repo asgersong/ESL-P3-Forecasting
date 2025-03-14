@@ -51,25 +51,44 @@ df = pd.concat([df_train, df_test], axis=0)
 
 # plt.tight_layout()
 # plt.show()
-
+# # Select ex-regressors
 exog_train = df[
     [
-        "total_load_actual",
-        "hour_of_day",
-        "windpower",
-        "solarpower",
-        "fossil_fuels",
-        "other_green_energy",
+        "day_of_week",
+        # "hour_of_day",
+        # "price_actual_lag_24h",
+        "price_actual_lag_1w",
+        "price_actual_lag_2w",
+        "price_actual_lag_3w",
+        "price_actual_lag_4w",
+        # "fossil_fuels_lag_24h",
+        # "windpower_lag_24h",
+        # "solarpower_lag_24h",
+        # "other_green_energy_lag_24h",
+        # "total_load_actual_lag_24h",
+        "temp_lag_24h",
+        # "wind_speed_lag_24h",
+        # "clouds_all_lag_24h"
     ]
-].shift(24)
-exog_train["day_of_week"] = df.index.dayofweek
-exog_train = exog_train[24:]
-df = df[24:]
+]
+# exog_train = df[
+#     [
+#         "total_load_actual",
+#         "hour_of_day",
+#         "windpower",
+#         "solarpower",
+#         "fossil_fuels",
+#         "other_green_energy",
+#     ]
+# ].shift(24)
+# exog_train["day_of_week"] = df.index.dayofweek
+# exog_train = exog_train[24:]
+# df = df[24:]
 
-print(exog_train.describe(include="all"))
-print(df["price_actual"].describe(include="all"))
-print(exog_train.head())
-print(df["price_actual"].head())
+# print(exog_train.describe(include="all"))
+# print(df["price_actual"].describe(include="all"))
+# print(exog_train.head())
+# print(df["price_actual"].head())
 
 # plot_acf(df["price actual"], lags=365)
 # plt.show()
@@ -78,7 +97,7 @@ print(df["price_actual"].head())
 
 # Initialize variables
 period = 24 * 14
-train_size = 24 * 100
+train_size = 24 * 200
 horizon = 24
 predictions = []
 predictions_var = []
@@ -97,7 +116,7 @@ def update_progress(*args, **kwargs):
     progress.update(2)
 
 
-df = df[: train_size + period + horizon]
+df = df[: train_size + 10 * period + horizon]
 # load model if exists
 if os.path.exists(f"price_prediction/SARIMAX/models/{model_name}"):
     SARIMAX_result = SARIMAXResults.load(
@@ -109,12 +128,12 @@ else:
     SARIMAX_model = SARIMAX(
         df["price_actual"][:train_size],
         exog=exog_train[:train_size],
-        order=(0, 0, 1),
-        seasonal_order=(1, 1, 1, 24),
+        order=(1, 1, 0),
+        seasonal_order=(1, 0, 0, 24),
         simple_differencing=False,
     )
 
-    # Automatically find optimal SARIMAX parameters
+    # # Automatically find optimal SARIMAX parameters
     # model = pm.auto_arima(
     #     df["price_actual"][:train_size],
     #     exogenous=exog_train[:train_size],
@@ -174,27 +193,31 @@ for i in tqdm(
     print(f"Mean Absolute Error (MAE): {mae}")
     print(f"Root Mean Squared Error (RMSE): {rmse}")
 
-    logs[f"MAE_{i}"] = mae
-    logs[f"RMSE_{i}"] = rmse
+    logs[f"MAE_{len(predictions) // horizon - 1 }"] = mae
+    logs[f"RMSE_{len(predictions) // horizon - 1}"] = rmse
 
-    # Update the model with new data
-    # SARIMAX_result = SARIMAX_result.append(
-    #     df["price_actual"][train_size + i : train_size + i + n_periods],
-    #     exog=exog_train[train_size + i : train_size + i + n_periods],
-    #     refit=False,
-    # )
 
     if i + period >= len(df) - train_size:
         break
-    SARIMAX_model = SARIMAX(
-        df["price_actual"][: train_size + period + i],
-        exog=exog_train[: train_size + period + i],
-        order=SARIMAX_model.order,
-        seasonal_order=SARIMAX_model.seasonal_order,
-        simple_differencing=False,
+    #Update the model with new data
+    SARIMAX_result = SARIMAX_result.append(
+        df["price_actual"][train_size + i : train_size + i + period],
+        exog=exog_train[train_size + i : train_size + i + period],
+        refit=True,
     )
-    SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
+    # SARIMAX_model = SARIMAX(
+    #     df["price_actual"][: train_size + period + i],
+    #     exog=exog_train[: train_size + period + i],
+    #     order=SARIMAX_model.order,
+    #     seasonal_order=SARIMAX_model.seasonal_order,
+    #     simple_differencing=False,
+    # )
+    # SARIMAX_result = SARIMAX_model.fit(disp=True, callback=update_progress)
 
+# Save the forecast results in logs
+logs["predictions"] = predictions
+logs["predictions_var"] = predictions_var
+logs["predictions_index"] = predictions_index
 
 # MAE and RMSE
 actual = df["price_actual"].loc[predictions_index]
@@ -208,24 +231,65 @@ logs["MAE"] = mae
 logs["RMSE"] = rmse
 
 # Plot the results
-plt.plot(
+fig_a, ax = plt.subplots(figsize=(10, 6))
+ax.plot(
     df.index,
     df["price_actual"],
+    '-b',
     label="Actual",
 )
-plt.legend()
+ax.set_title("Price Actual with forecasts")
+ax.legend()
 for i in range(0, len(predictions), horizon):
-    plt.plot(
+    ax.plot(
         predictions_index[i : i + horizon],
         predictions[i : i + horizon],
         label="Forecast",
+        color="orange",
+        linestyle='--'
     )
-    plt.fill_between(
+    ax.fill_between(
         predictions_index[i : i + horizon],
         predictions[i : i + horizon] - np.sqrt(predictions_var[i : i + horizon]),
         predictions[i : i + horizon] + np.sqrt(predictions_var[i : i + horizon]),
         alpha=0.2,
     )
+
+
+# plot upclose forecasts for 9 random cutoffs
+num_forecasts = 9
+random_cutoffs = np.random.choice(len(predictions)//horizon, num_forecasts, replace=False)
+n_cols = 3
+n_rows = (num_forecasts + n_cols - 1) // n_cols
+fig_b, axs = plt.subplots(n_rows, n_cols, figsize=(10, 3 * n_rows))
+axs = axs.flatten()
+for i, fc in enumerate(random_cutoffs):
+    ax = axs[i]
+    ax.plot(
+        predictions_index[fc * horizon : (fc + 1) * horizon],
+        predictions[fc * horizon : (fc + 1) * horizon],
+        label="Forecast",
+        color="orange",
+        linestyle="--",
+    )
+    ax.fill_between(
+        predictions_index[fc * horizon : (fc + 1) * horizon],
+        predictions[fc * horizon : (fc + 1) * horizon]
+        - np.sqrt(predictions_var[fc * horizon : (fc + 1) * horizon]),
+        predictions[fc * horizon : (fc + 1) * horizon]
+        + np.sqrt(predictions_var[fc * horizon : (fc + 1) * horizon]),
+        alpha=0.2,
+    )
+    ax.plot(
+        predictions_index[fc * horizon : (fc + 1) * horizon],
+        df["price_actual"].loc[predictions_index[fc * horizon : (fc + 1) * horizon]],
+        label="Actual",
+    )
+    ax.set_title(f"Forecast {fc}, MAE: {logs[f'MAE_{fc}']:.2f}, RMSE: {logs[f'RMSE_{fc}']:.2f}")
+    ax.legend()
+    ax.grid()  
+
+plt.tight_layout()
 plt.show()
 print(SARIMAX_result.summary())
 
