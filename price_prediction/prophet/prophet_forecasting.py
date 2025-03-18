@@ -99,7 +99,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
     random_cutoffs = np.random.choice(unique_cutoffs, num_plots, replace=False)
     n_cols = 3
     n_rows = (num_plots + n_cols - 1) // n_cols
-    fig_b, axs = plt.subplots(n_rows, n_cols, figsize=(10, 3 * n_rows))
+    fig_b, axs = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
     axs = axs.flatten()
 
     for i, fc in enumerate(random_cutoffs):
@@ -137,6 +137,8 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
         rmse = mean_squared_error(y_true, y_pred) ** 0.5
         mae = mean_absolute_error(y_true, y_pred)
         ax.set_title(f"RMSE: {rmse:.4f}, MAE: {mae:.4f}")
+        
+    fig_b.tight_layout()
 
     # plot components
     fcst = m.predict()  # dummy forecast to get components
@@ -152,7 +154,7 @@ def plot_forecasts(m: Prophet, f_cv, num_plots=6, suffix=""):
 
 
 if __name__ == "__main__":
-    SUFFIX = "_with_weather"
+    SUFFIX = "_test"
     TRAIN = True
 
     if TRAIN:
@@ -179,14 +181,14 @@ if __name__ == "__main__":
             "changepoint_prior_scale": 0.5,  # default 0.05
             "seasonality_prior_scale": 1.0,  # default 10.0
             "holidays_prior_scale": 0.001,  # default 10.0
-            "ex_regressor_prior_scale": 0.5,  # default None
+            "ex_regressor_prior_scale": 1.0,  # default None
         }
 
         model = train_model(model_config, regressors, pd.concat([df_train, df_test]))
         forecasts_cv = cross_validation(
             model,
             initial="100 days",
-            period="16 days",
+            period="13 days",
             horizon="24 hours",
             parallel="processes",
         )
@@ -203,6 +205,11 @@ if __name__ == "__main__":
     model = model_from_json(
         json.load(open(f"saved_models/model{SUFFIX}.json", "r", encoding="utf-8"))
     )
+    
+    from prophet.utilities import regressor_coefficients
+    print(regressor_coefficients(model))
+    # print(model.extra_regressors)
+    
     forecasts_cv = pd.read_csv(f"forecasts/f_cv{SUFFIX}.csv", parse_dates=["ds"])
     df_p = pd.read_csv(f"forecasts/df_p{SUFFIX}.csv")
 
